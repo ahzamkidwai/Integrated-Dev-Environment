@@ -4,6 +4,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Console from "@/components/Console";
+import { colors } from "@/styles/globalStyles";
 
 const CodeEditor = dynamic(() => import("../components/Editor"), {
   ssr: false,
@@ -28,6 +29,9 @@ export default function IDEPage() {
   );
   const [consoleLines, setConsoleLines] = useState<string[]>([]);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  // 🌙 Dark/Light mode toggle state
+  const [darkMode, setDarkMode] = useState<boolean>(false);
 
   // Build a fresh iframe srcdoc every time we Run so it starts clean
   const createIframeSrc = (userCode: string): string => {
@@ -105,8 +109,31 @@ export default function IDEPage() {
   const clearConsole = () => setConsoleLines([]);
 
   return (
-    <div style={{ padding: 18, fontFamily: "Inter, system-ui, sans-serif" }}>
-      <h2>Minimal Next.js IDE (JS runs in-browser)</h2>
+    <div
+      style={{
+        padding: 18,
+        fontFamily: "Inter, system-ui, sans-serif",
+        background: darkMode ? colors.dark.background : colors.light.background,
+        color: darkMode ? colors.dark.text : colors.light.text,
+        minHeight: "100vh",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <h2>Minimal Next.js IDE (JS runs in-browser)</h2>
+        <button
+          onClick={() => setDarkMode(!darkMode)}
+          style={{
+            padding: "6px 12px",
+            cursor: "pointer",
+            background: darkMode ? colors.dark.buttonBg : colors.light.buttonBg,
+            color: darkMode ? colors.dark.buttonText : colors.light.buttonText,
+            border: `1px solid ${colors.dark.border}`,
+            borderRadius: 4,
+          }}
+        >
+          {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
+        </button>
+      </div>
 
       <div
         style={{
@@ -121,6 +148,15 @@ export default function IDEPage() {
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
+            style={{
+              background: darkMode
+                ? colors.dark.selectBg
+                : colors.light.selectBg,
+              color: darkMode
+                ? colors.dark.selectText
+                : colors.light.selectText,
+              padding: "4px 6px",
+            }}
           >
             {LANGS.map((l) => (
               <option key={l.id} value={l.id}>
@@ -131,24 +167,17 @@ export default function IDEPage() {
         </div>
 
         <button
-          onClick={runCode}
           style={{ padding: "6px 12px", cursor: "pointer" }}
+          onClick={runCode}
         >
           Run ▶
         </button>
         <button
-          onClick={clearConsole}
           style={{ padding: "6px 12px", cursor: "pointer" }}
+          onClick={clearConsole}
         >
           Clear Console
         </button>
-
-        <div style={{ marginLeft: "auto", opacity: 0.8 }}>
-          <small>
-            Note: JS runs in a sandboxed iframe. Other languages are
-            placeholders.
-          </small>
-        </div>
       </div>
 
       <CodeEditor
@@ -165,9 +194,8 @@ export default function IDEPage() {
           gap: 12,
         }}
       >
-        <Console lines={consoleLines} />
-
-        {/* <div>
+        <Console lines={consoleLines} darkMode={darkMode} />
+        <div>
           <div style={{ marginBottom: 8, fontSize: 13, color: "#666" }}>
             Sandbox iframe (hidden)
           </div>
@@ -182,11 +210,7 @@ export default function IDEPage() {
               display: "none",
             }}
           />
-          <div style={{ marginTop: 6, fontSize: 12, color: "#888" }}>
-            The iframe is sandboxed with <code>allow-scripts</code> only — no
-            network or parent DOM access.
-          </div>
-        </div> */}
+        </div>
       </div>
     </div>
   );

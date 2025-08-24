@@ -1,10 +1,12 @@
 import { useRef, useEffect } from "react";
+import { colors } from "@/styles/globalStyles";
 
 type ConsoleProps = {
   lines: string[];
+  darkMode?: boolean;
 };
 
-export default function Console({ lines }: ConsoleProps) {
+export default function Console({ lines, darkMode = false }: ConsoleProps) {
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -17,15 +19,15 @@ export default function Console({ lines }: ConsoleProps) {
     <div
       ref={ref}
       style={{
-        background: "#0b1220",
-        color: "#b4f8c8",
+        background: darkMode ? colors.console.darkBg : colors.console.lightBg,
+        color: darkMode ? colors.console.darkText : colors.console.lightText,
         padding: 12,
         height: 180,
         borderRadius: 6,
         overflowY: "auto",
         fontFamily: "monospace",
         fontSize: 13,
-        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.02)",
+        boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.08)",
       }}
     >
       {lines.length === 0 ? (
