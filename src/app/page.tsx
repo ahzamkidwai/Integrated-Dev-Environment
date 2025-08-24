@@ -1,103 +1,193 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+// pages/index.tsx
+import React, { useState, useRef, useEffect } from "react";
+import dynamic from "next/dynamic";
+import Console from "@/components/Console";
+
+const CodeEditor = dynamic(() => import("../components/Editor"), {
+  ssr: false,
+});
+
+type Lang = {
+  id: string;
+  label: string;
+};
+
+const LANGS: Lang[] = [
+  { id: "javascript", label: "JavaScript" },
+  { id: "python", label: "Python" },
+  { id: "java", label: "Java" },
+  { id: "cpp", label: "C++" },
+];
+
+export default function IDEPage() {
+  const [language, setLanguage] = useState<string>("javascript");
+  const [code, setCode] = useState<string>(
+    `console.log("Hello from sandboxed JS");`
+  );
+  const [consoleLines, setConsoleLines] = useState<string[]>([]);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  // Build a fresh iframe srcdoc every time we Run so it starts clean
+  const createIframeSrc = (userCode: string): string => {
+    const html = `
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Sandbox</title>
+  </head>
+  <body>
+    <script>
+      (function() {
+        function send(type, args) {
+          try {
+            const s = args.map(a => {
+              try { return typeof a === 'object' ? JSON.stringify(a) : String(a); }
+              catch(e){ return String(a); }
+            }).join(' ');
+            parent.postMessage({ __IDE_SANDBOX: true, type: type, message: s }, "*");
+          } catch(e) { }
+        }
+        console.log = (...args) => send('log', args);
+        console.info = (...args) => send('info', args);
+        console.warn = (...args) => send('warn', args);
+        console.error = (...args) => send('error', args);
+        window.onerror = function(msg, src, lineno, colno, err) {
+          send('error', [msg + " (at " + lineno + ":" + colno + ")"]);
+        };
+
+        try {
+          ${userCode}
+        } catch (err) {
+          send('error', [err && err.stack ? err.stack : String(err)]);
+        }
+
+        parent.postMessage({ __IDE_SANDBOX: true, type: 'done', message: 'Execution finished' }, "*");
+      })();
+    </script>
+  </body>
+</html>`;
+    return html;
+  };
+
+  useEffect(() => {
+    const handler = (ev: MessageEvent) => {
+      const d = ev.data as {
+        __IDE_SANDBOX?: boolean;
+        type?: string;
+        message?: string;
+      };
+      if (!d || d.__IDE_SANDBOX !== true) return;
+      setConsoleLines((prev) => [...prev, `[${d.type}] ${d.message}`]);
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
+
+  const runCode = () => {
+    if (language !== "javascript") {
+      setConsoleLines((prev) => [
+        ...prev,
+        `[info] Running ${language} is not implemented in-browser.`,
+        `[hint] For ${language} you can hook a server executor (Judge0) or Pyodide for Python.`,
+      ]);
+      return;
+    }
+
+    const srcdoc = createIframeSrc(code);
+    if (iframeRef.current) {
+      iframeRef.current.srcdoc = srcdoc;
+    }
+  };
+
+  const clearConsole = () => setConsoleLines([]);
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div style={{ padding: 18, fontFamily: "Inter, system-ui, sans-serif" }}>
+      <h2>Minimal Next.js IDE (JS runs in-browser)</h2>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          alignItems: "center",
+          marginBottom: 10,
+        }}
+      >
+        <div>
+          <label style={{ marginRight: 6 }}>Language</label>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            {LANGS.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.label}
+              </option>
+            ))}
+          </select>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+
+        <button
+          onClick={runCode}
+          style={{ padding: "6px 12px", cursor: "pointer" }}
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          Run ▶
+        </button>
+        <button
+          onClick={clearConsole}
+          style={{ padding: "6px 12px", cursor: "pointer" }}
         >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+          Clear Console
+        </button>
+
+        <div style={{ marginLeft: "auto", opacity: 0.8 }}>
+          <small>
+            Note: JS runs in a sandboxed iframe. Other languages are
+            placeholders.
+          </small>
+        </div>
+      </div>
+
+      <CodeEditor
+        code={code}
+        setCode={setCode}
+        language={language as "javascript" | "python" | "java" | "cpp"}
+      />
+
+      <div
+        style={{
+          marginTop: 12,
+          display: "grid",
+          gridTemplateColumns: "1fr 420px",
+          gap: 12,
+        }}
+      >
+        <Console lines={consoleLines} />
+
+        {/* <div>
+          <div style={{ marginBottom: 8, fontSize: 13, color: "#666" }}>
+            Sandbox iframe (hidden)
+          </div>
+          <iframe
+            title="sandbox-runner"
+            ref={iframeRef}
+            sandbox="allow-scripts"
+            style={{
+              width: "100%",
+              height: 200,
+              border: "1px solid rgba(0,0,0,0.08)",
+              display: "none",
+            }}
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <div style={{ marginTop: 6, fontSize: 12, color: "#888" }}>
+            The iframe is sandboxed with <code>allow-scripts</code> only — no
+            network or parent DOM access.
+          </div>
+        </div> */}
+      </div>
     </div>
   );
 }
