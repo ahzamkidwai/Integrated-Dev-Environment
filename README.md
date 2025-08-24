@@ -1,6 +1,6 @@
 # unicodeX - Online Code Editor
 
-![Logo](path-to-your-logo)
+![Logo](/images/HomePage/logo.png)
 
 ## About The Project
 
