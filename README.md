@@ -18,10 +18,6 @@ unicodeX is a web-based IDE built with **Next.js** that allows users to run code
 - `react-select`  
 - `react-spinners`  
 
-## Live Demo
-
-[Frontend Hosted on Vercel](https://rce70.vercel.app)
-
 ## Main Features
 
 - Multiple language support: **JavaScript, Python, C++, C, Java**  
