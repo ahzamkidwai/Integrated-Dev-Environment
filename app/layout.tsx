@@ -7,11 +7,11 @@ const firaCode = Fira_Code({
 })
 
 export const metadata: Metadata = {
-  title: 'RCE70',
-  description: 'RCE70 is a web-based code execution platform.',
+  title: 'unicodeX - Online Code Editor',
+  description: 'unicodeX is a free online code editor and compiler',
   icons: [
     {
-      hostname: 'rce70.vercel.app',
+      hostname: 'unicodeX.vercel.app',
       url: '/favicon.ico',
     },
   ],
