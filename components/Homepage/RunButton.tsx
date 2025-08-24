@@ -36,6 +36,10 @@ const RunButton: FC<RunButtonProps> = ({
     setError(false)
     toast.dismiss()
     setLoading(true)
+    console.log(
+      'Running code... : ',
+      process.env.NEXT_PUBLIC_AWS_API_GATEWAY_URL
+    )
     const res = (await executeCode(code, selectedLanguage, input)) as Res
     if (res.status === true) {
       toast.success('Code executed', toastStyles)

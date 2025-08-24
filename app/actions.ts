@@ -8,6 +8,7 @@ export const executeCode = async (
   input: string
 ) => {
   try {
+    console.log('Executing code on server...', process.env.AWS_API_GATEWAY_URL)
     let headersList = {
       Accept: '*/*',
       'Content-Type': 'application/json',
