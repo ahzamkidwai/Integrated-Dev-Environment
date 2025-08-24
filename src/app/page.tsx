@@ -1,21 +1,15 @@
 "use client";
 
-// pages/index.tsx
 import React, { useState, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Console from "@/components/Console";
-import { colors } from "@/styles/globalStyles";
+import { themes, ThemeKey } from "@/styles/globalStyles";
 
 const CodeEditor = dynamic(() => import("../components/Editor"), {
   ssr: false,
 });
 
-type Lang = {
-  id: string;
-  label: string;
-};
-
-const LANGS: Lang[] = [
+const LANGS = [
   { id: "javascript", label: "JavaScript" },
   { id: "python", label: "Python" },
   { id: "java", label: "Java" },
@@ -30,18 +24,14 @@ export default function IDEPage() {
   const [consoleLines, setConsoleLines] = useState<string[]>([]);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
-  // 🌙 Dark/Light mode toggle state
-  const [darkMode, setDarkMode] = useState<boolean>(false);
+  const [theme, setTheme] = useState<ThemeKey>("light");
+  const activeTheme = themes[theme];
 
-  // Build a fresh iframe srcdoc every time we Run so it starts clean
   const createIframeSrc = (userCode: string): string => {
-    const html = `
+    return `
 <!doctype html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Sandbox</title>
-  </head>
+  <head><meta charset="utf-8" /></head>
   <body>
     <script>
       (function() {
@@ -55,34 +45,22 @@ export default function IDEPage() {
           } catch(e) { }
         }
         console.log = (...args) => send('log', args);
-        console.info = (...args) => send('info', args);
-        console.warn = (...args) => send('warn', args);
         console.error = (...args) => send('error', args);
-        window.onerror = function(msg, src, lineno, colno, err) {
-          send('error', [msg + " (at " + lineno + ":" + colno + ")"]);
-        };
-
         try {
           ${userCode}
         } catch (err) {
-          send('error', [err && err.stack ? err.stack : String(err)]);
+          send('error', [err.stack || String(err)]);
         }
-
         parent.postMessage({ __IDE_SANDBOX: true, type: 'done', message: 'Execution finished' }, "*");
       })();
     </script>
   </body>
 </html>`;
-    return html;
   };
 
   useEffect(() => {
     const handler = (ev: MessageEvent) => {
-      const d = ev.data as {
-        __IDE_SANDBOX?: boolean;
-        type?: string;
-        message?: string;
-      };
+      const d = ev.data as any;
       if (!d || d.__IDE_SANDBOX !== true) return;
       setConsoleLines((prev) => [...prev, `[${d.type}] ${d.message}`]);
     };
@@ -95,14 +73,12 @@ export default function IDEPage() {
       setConsoleLines((prev) => [
         ...prev,
         `[info] Running ${language} is not implemented in-browser.`,
-        `[hint] For ${language} you can hook a server executor (Judge0) or Pyodide for Python.`,
+        `[hint] Use Judge0 API or Pyodide for server-side execution.`,
       ]);
       return;
     }
-
-    const srcdoc = createIframeSrc(code);
     if (iframeRef.current) {
-      iframeRef.current.srcdoc = srcdoc;
+      iframeRef.current.srcdoc = createIframeSrc(code);
     }
   };
 
@@ -113,26 +89,63 @@ export default function IDEPage() {
       style={{
         padding: 18,
         fontFamily: "Inter, system-ui, sans-serif",
-        background: darkMode ? colors.dark.background : colors.light.background,
-        color: darkMode ? colors.dark.text : colors.light.text,
+        background: activeTheme.background,
+        color: activeTheme.text,
         minHeight: "100vh",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <h2>Minimal Next.js IDE (JS runs in-browser)</h2>
-        <button
-          onClick={() => setDarkMode(!darkMode)}
+
+        <select
+          value={theme}
+          onChange={(e) => setTheme(e.target.value as ThemeKey)}
           style={{
-            padding: "6px 12px",
+            padding: "8px 14px",
             cursor: "pointer",
-            background: darkMode ? colors.dark.buttonBg : colors.light.buttonBg,
-            color: darkMode ? colors.dark.buttonText : colors.light.buttonText,
-            border: `1px solid ${colors.dark.border}`,
-            borderRadius: 4,
+            background: activeTheme.selectBg,
+            color: activeTheme.selectText,
+            border: `1px solid ${activeTheme.border}`,
+            borderRadius: 6,
+            fontSize: 14,
+            fontWeight: 500,
+            boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+            transition: "all 0.2s ease-in-out",
+            appearance: "none", // hide default arrow
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            position: "relative",
+            paddingRight: "32px", // space for custom arrow
           }}
         >
-          {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
-        </button>
+          {Object.entries(themes).map(([key, t]) => (
+            <option
+              key={key}
+              value={key}
+              style={{
+                background: activeTheme.background,
+                color: activeTheme.text,
+              }}
+            >
+              {t.name}
+            </option>
+          ))}
+        </select>
+
+        {/* custom dropdown arrow */}
+        <span
+          style={{
+            position: "absolute",
+            right: 12,
+            top: "50%",
+            transform: "translateY(-50%)",
+            pointerEvents: "none",
+            color: activeTheme.text,
+            fontSize: 12,
+          }}
+        >
+          ▼
+        </span>
       </div>
 
       <div
@@ -149,13 +162,10 @@ export default function IDEPage() {
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
             style={{
-              background: darkMode
-                ? colors.dark.selectBg
-                : colors.light.selectBg,
-              color: darkMode
-                ? colors.dark.selectText
-                : colors.light.selectText,
+              background: activeTheme.selectBg,
+              color: activeTheme.selectText,
               padding: "4px 6px",
+              border: `1px solid ${activeTheme.border}`,
             }}
           >
             {LANGS.map((l) => (
@@ -167,13 +177,27 @@ export default function IDEPage() {
         </div>
 
         <button
-          style={{ padding: "6px 12px", cursor: "pointer" }}
+          style={{
+            padding: "6px 12px",
+            cursor: "pointer",
+            background: activeTheme.buttonBg,
+            color: activeTheme.buttonText,
+            border: `1px solid ${activeTheme.border}`,
+            borderRadius: 4,
+          }}
           onClick={runCode}
         >
           Run ▶
         </button>
         <button
-          style={{ padding: "6px 12px", cursor: "pointer" }}
+          style={{
+            padding: "6px 12px",
+            cursor: "pointer",
+            background: activeTheme.buttonBg,
+            color: activeTheme.buttonText,
+            border: `1px solid ${activeTheme.border}`,
+            borderRadius: 4,
+          }}
           onClick={clearConsole}
         >
           Clear Console
@@ -184,6 +208,7 @@ export default function IDEPage() {
         code={code}
         setCode={setCode}
         language={language as "javascript" | "python" | "java" | "cpp"}
+        darkMode={activeTheme.monaco === "vs-dark"}
       />
 
       <div
@@ -194,23 +219,18 @@ export default function IDEPage() {
           gap: 12,
         }}
       >
-        <Console lines={consoleLines} darkMode={darkMode} />
-        <div>
-          <div style={{ marginBottom: 8, fontSize: 13, color: "#666" }}>
-            Sandbox iframe (hidden)
-          </div>
-          <iframe
-            title="sandbox-runner"
-            ref={iframeRef}
-            sandbox="allow-scripts"
-            style={{
-              width: "100%",
-              height: 200,
-              border: "1px solid rgba(0,0,0,0.08)",
-              display: "none",
-            }}
-          />
-        </div>
+        <Console
+          lines={consoleLines}
+          darkMode={activeTheme.monaco === "vs-dark"}
+        />
+        <iframe
+          title="sandbox-runner"
+          ref={iframeRef}
+          sandbox="allow-scripts"
+          style={{
+            display: "none",
+          }}
+        />
       </div>
     </div>
   );
